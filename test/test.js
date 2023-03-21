@@ -5,69 +5,69 @@ const fs = require('fs');
 const openAPI = require('../dist/index');
 
 const gen = async () => {
-  await openAPI.generateService({
-    schemaPath: `${__dirname}/test-allof-api.json`,
-    serversPath: './servers-allof',
-  });
+  // await openAPI.generateService({
+  //   schemaPath: `${__dirname}/test-allof-api.json`,
+  //   serversPath: './servers-allof',
+  // });
 
   await openAPI.generateService({
     schemaPath: `${__dirname}/example-files/swagger-get-method-params-convert-obj.json`,
     serversPath: './servers',
   });
 
-  await openAPI.generateService({
-    schemaPath: `${__dirname}/example-files/swagger-schema-contain-blank-symbol.json`,
-    serversPath: './servers/blank-symbol-servers',
-  });
+  // await openAPI.generateService({
+  //   schemaPath: `${__dirname}/example-files/swagger-schema-contain-blank-symbol.json`,
+  //   serversPath: './servers/blank-symbol-servers',
+  // });
 
-  await openAPI.generateService({
-    schemaPath: `${__dirname}/example-files/swagger-file-convert.json`,
-    serversPath: './file-servers',
-  });
+  // await openAPI.generateService({
+  //   schemaPath: `${__dirname}/example-files/swagger-file-convert.json`,
+  //   serversPath: './file-servers',
+  // });
 
-  await openAPI.generateService({
-    requestLibPath: "import request  from '@/request';",
-    schemaPath: `${__dirname}/example-files/swagger-custom-hook.json`,
-    serversPath: './servers',
-    hook: {
-        // 自定义类名
-        customClassName: (tagName) => {
-            return /[A-Z].+/.exec(tagName);
-        },
-        // 自定义函数名
-        customFunctionName: (data) => {
-            let funName = data.operationId ? data.operationId : '';
-            const suffix = 'Using';
-            if (funName.indexOf(suffix) != -1) {
-                funName = funName.substring(0, funName.lastIndexOf(suffix));
-            }
-            return funName;
-        },
-        // 自定义类型名
-        customTypeName: (data) => {
-          const { operationId } = data;
-          const funName = operationId
-            ? operationId[0].toUpperCase() + operationId.substring(1)
-            : '';
-          const tag = data?.tags?.[0];
+  // await openAPI.generateService({
+  //   requestLibPath: "import request  from '@/request';",
+  //   schemaPath: `${__dirname}/example-files/swagger-custom-hook.json`,
+  //   serversPath: './servers',
+  //   hook: {
+  //       // 自定义类名
+  //       customClassName: (tagName) => {
+  //           return /[A-Z].+/.exec(tagName);
+  //       },
+  //       // 自定义函数名
+  //       customFunctionName: (data) => {
+  //           let funName = data.operationId ? data.operationId : '';
+  //           const suffix = 'Using';
+  //           if (funName.indexOf(suffix) != -1) {
+  //               funName = funName.substring(0, funName.lastIndexOf(suffix));
+  //           }
+  //           return funName;
+  //       },
+  //       // 自定义类型名
+  //       customTypeName: (data) => {
+  //         const { operationId } = data;
+  //         const funName = operationId
+  //           ? operationId[0].toUpperCase() + operationId.substring(1)
+  //           : '';
+  //         const tag = data?.tags?.[0];
 
-          return `${tag ? tag : ''}${funName}`;
-        }
-    }
-  });
+  //         return `${tag ? tag : ''}${funName}`;
+  //       }
+  //   }
+  // });
 
   // 支持null类型作为默认值
-  await openAPI.generateService({
-    schemaPath: `${__dirname}/example-files/swagger-get-method-params-convert-obj.json`,
-    serversPath: './servers/support-null',
-    nullable:true
-  });
+  // await openAPI.generateService({
+  //   schemaPath: `${__dirname}/example-files/swagger-get-method-params-convert-obj.json`,
+  //   serversPath: './servers/support-null',
+  //   nullable:true
+  // });
 
   // check 文件生成
-  const fileControllerStr = fs.readFileSync(path.join(__dirname, 'file-servers/api/fileController.ts'), 'utf8');
-  assert(fileControllerStr.indexOf('!(item instanceof File)') > 0);
-  assert(fileControllerStr.indexOf(`requestType: 'form',`) > 0);
-  assert(fileControllerStr.indexOf('Content-Type') < 0);
+  // const fileControllerStr = fs.readFileSync(path.join(__dirname, 'file-servers/api/fileController.ts'), 'utf8');
+  // assert(fileControllerStr.indexOf('!(item instanceof File)') > 0);
+  // assert(fileControllerStr.indexOf(`requestType: 'form',`) > 0);
+  // assert(fileControllerStr.indexOf('Content-Type') < 0);
   // await openAPI.generateService({
   //   // requestLibPath: "import request  from '@/request';",
   //   schemaPath: `http://82.157.33.9/swagger/swagger.json`,

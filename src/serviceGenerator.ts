@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
+import fs, { existsSync, mkdirSync, readFileSync, readFile } from 'fs';
 import glob from 'glob';
 import * as nunjucks from 'nunjucks';
 import type {
@@ -13,7 +13,7 @@ import type {
   ResponsesObject,
   SchemaObject,
 } from 'openapi3-ts';
-import { join } from 'path';
+import path, { join } from 'path';
 import ReservedDict from 'reserved-words';
 import rimraf from 'rimraf';
 import pinyin from 'tiny-pinyin';
@@ -23,7 +23,7 @@ import { stripDot, writeFile } from './util';
 
 const BASE_DIRS = ['service', 'services'];
 
-export type TypescriptFileType = 'interface' | 'serviceController' | 'serviceIndex';
+export type TypescriptFileType = 'interface' | 'serviceController' | 'serviceIndex' | 'apiIndex';
 
 export interface APIDataType extends OperationObject {
   path: string;
@@ -307,24 +307,13 @@ class ServiceGenerator {
     });
   }
 
-  public genFile() {
+  public async genFile() {
     const basePath = this.config.serversPath || './src/service';
-    try {
-      const finalPath = join(basePath, this.config.projectName);
-
-      this.finalPath = finalPath;
-      glob
-        .sync(`${finalPath}/**/*`)
-        .filter((ele) => !ele.includes('_deperated'))
-        .forEach((ele) => {
-          rimraf.sync(ele);
-        });
-    } catch (error) {
-      Log(`🚥 serves 生成失败: ${error}`);
-    }
+    const finalPath = path.resolve(basePath, this.config.projectName);
+    this.finalPath = finalPath;
 
     // 生成 ts 类型声明
-    this.genFileFromTemplate('typings.d.ts', 'interface', {
+    this.genFileFromTemplate(this.finalPath, 'typings.d.ts', 'interface', {
       namespace: this.config.namespace,
       nullable: this.config.nullable,
       // namespace: 'API',
@@ -334,33 +323,71 @@ class ServiceGenerator {
     // 生成 controller 文件
     const prettierError = [];
     // 生成 service 统计
-    this.getServiceTP().forEach((tp) => {
-      // 根据当前数据源类型选择恰当的 controller 模版
-      const template = 'serviceController';
-      const hasError = this.genFileFromTemplate(
-        this.getFinalFileName(`${tp.className}.ts`),
-        template,
-        {
-          namespace: this.config.namespace,
-          requestImportStatement: this.config.requestImportStatement,
-          disableTypeCheck: false,
-          ...tp,
-        },
-      );
-      prettierError.push(hasError);
+    this.getServiceTP().forEach(async (tp) => {
+      const dirPath = path.resolve(this.finalPath, tp.className);
+      if (!existsSync(dirPath)) {
+        mkdirSync(dirPath);
+      }
+      tp.list
+        // 如果配置了generateApis list，则只生成配置的列表,否则全部生成
+        .filter((item) =>
+          this.config.generateApis?.length
+            ? this.config.generateApis.find((api) => item.path.endsWith(api))
+            : item,
+        )
+        .forEach((item) => {
+          // 根据当前数据源类型选择恰当的 controller 模版
+          const finalFileName = this.getFinalFileName(`${item.functionName}.ts`);
+          rimraf.sync(path.resolve(this.finalPath, tp.className, finalFileName));
+          const template = 'serviceController';
+          const hasError = this.genFileFromTemplate(
+            path.resolve(this.finalPath, tp.className),
+            finalFileName,
+            template,
+            {
+              namespace: this.config.namespace,
+              requestImportStatement: this.config.requestImportStatement,
+              disableTypeCheck: false,
+              genType: tp.genType,
+              className: tp.className,
+              instanceName: tp.instanceName,
+              list: [item],
+            },
+          );
+          prettierError.push(hasError);
+        });
+
+      // fs
+      // readFile(dirPath);
+      await this.genIndexFile(dirPath, 'apiIndex');
     });
 
     if (prettierError.includes(true)) {
       Log(`🚥 格式化失败，请检查 service 文件内可能存在的语法错误`);
     }
     // 生成 index 文件
-    this.genFileFromTemplate(`index.ts`, 'serviceIndex', {
-      list: this.classNameList,
-      disableTypeCheck: false,
-    });
+    // this.genFileFromTemplate(`index.ts`, 'serviceIndex', {
+    //   list: this.classNameList,
+    //   disableTypeCheck: false,
+    // });
+    this.genIndexFile(this.finalPath);
 
     // 打印日志
     Log(`✅ 成功生成 service 文件`);
+  }
+
+  public async genIndexFile(dir: string, template: TypescriptFileType = 'serviceIndex') {
+    const files = await fs.promises.readdir(dir);
+    this.genFileFromTemplate(dir, `index.ts`, template, {
+      list: files
+        .filter((f) => f !== 'index.ts' && !f.includes('.d.ts'))
+        .map((f) => ({
+          // f.replace('.ts', '')
+          controllerName: f.replace('.ts', ''),
+          fileName: f.replace('.ts', ''),
+        })),
+      disableTypeCheck: false,
+    });
   }
 
   public concatOrNull = (...arrays) => {
@@ -414,7 +441,7 @@ class ServiceGenerator {
                 formData = true;
               }
 
-              let functionName = this.getFuncationName(newApi);
+              let functionName = this.getFinalFileName(this.getFuncationName(newApi));
 
               if (functionName && tmpFunctionRD[functionName]) {
                 functionName = `${functionName}_${(tmpFunctionRD[functionName] += 1)}`;
@@ -825,6 +852,7 @@ class ServiceGenerator {
   }
 
   private genFileFromTemplate(
+    filePath: string,
     fileName: string,
     type: TypescriptFileType,
     params: Record<string, any>,
@@ -835,7 +863,7 @@ class ServiceGenerator {
       nunjucks.configure({
         autoescape: false,
       });
-      return writeFile(this.finalPath, fileName, nunjucks.renderString(template, params));
+      return writeFile(filePath, fileName, nunjucks.renderString(template, params));
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('[GenSDK] file gen fail:', fileName, 'type:', type);
@@ -843,7 +871,7 @@ class ServiceGenerator {
     }
   }
 
-  private getTemplate(type: 'interface' | 'serviceController' | 'serviceIndex'): string {
+  private getTemplate(type: TypescriptFileType): string {
     return readFileSync(join(this.config.templatesFolder, `${type}.njk`), 'utf8');
   }
 
@@ -1020,7 +1048,7 @@ class ServiceGenerator {
 
   private getFinalFileName(s: string): string {
     // 支持下划线、中划线和空格分隔符，注意分隔符枚举值的顺序不能改变，否则正则匹配会报错
-    return s.replace(/[-_ ](\w)/g, (_all, letter) => letter.toUpperCase());
+    return s.replace(/[-_ ]/g, '').replace(/[-_ ](\w)/g, (_all, letter) => letter.toUpperCase());
   }
 
   private replaceDot(s: string) {

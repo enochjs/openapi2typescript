@@ -78,6 +78,11 @@ export type GenerateServiceProps = {
    * example: ['result', 'res']
    */
   dataFields?: string[];
+
+  /**
+   * 需要更新的api列表,如果指定了api list，则只更新api list
+   */
+  generateApis?: string[];
 };
 
 const converterSwaggerToOpenApi = (swagger: any) => {
