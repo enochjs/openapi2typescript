@@ -323,44 +323,50 @@ class ServiceGenerator {
     // 生成 controller 文件
     const prettierError = [];
     // 生成 service 统计
-    this.getServiceTP().forEach(async (tp) => {
-      const dirPath = path.resolve(this.finalPath, tp.className);
-      if (!existsSync(dirPath)) {
-        mkdirSync(dirPath);
-      }
-      tp.list
-        // 如果配置了generateApis list，则只生成配置的列表,否则全部生成
-        .filter((item) =>
-          this.config.generateApis?.length
-            ? this.config.generateApis.find((api) => item.path.endsWith(api))
-            : item,
-        )
-        .forEach((item) => {
-          // 根据当前数据源类型选择恰当的 controller 模版
-          const finalFileName = this.getFinalFileName(`${item.functionName}.ts`);
-          rimraf.sync(path.resolve(this.finalPath, tp.className, finalFileName));
-          const template = 'serviceController';
-          const hasError = this.genFileFromTemplate(
-            path.resolve(this.finalPath, tp.className),
-            finalFileName,
-            template,
-            {
-              namespace: this.config.namespace,
-              requestImportStatement: this.config.requestImportStatement,
-              disableTypeCheck: false,
-              genType: tp.genType,
-              className: tp.className,
-              instanceName: tp.instanceName,
-              list: [item],
-            },
-          );
-          prettierError.push(hasError);
-        });
+    this.getServiceTP()
+      .filter((tp) =>
+        this.config.generateApis?.length
+          ? tp.list.find((item) => this.config.generateApis.find((api) => item.path.endsWith(api)))
+          : tp,
+      )
+      .forEach(async (tp) => {
+        const dirPath = path.resolve(this.finalPath, tp.className);
+        if (!existsSync(dirPath)) {
+          mkdirSync(dirPath);
+        }
+        tp.list
+          // 如果配置了generateApis list，则只生成配置的列表,否则全部生成
+          .filter((item) =>
+            this.config.generateApis?.length
+              ? this.config.generateApis.find((api) => item.path.endsWith(api))
+              : item,
+          )
+          .forEach((item) => {
+            // 根据当前数据源类型选择恰当的 controller 模版
+            const finalFileName = this.getFinalFileName(`${item.functionName}.ts`);
+            rimraf.sync(path.resolve(this.finalPath, tp.className, finalFileName));
+            const template = 'serviceController';
+            const hasError = this.genFileFromTemplate(
+              path.resolve(this.finalPath, tp.className),
+              finalFileName,
+              template,
+              {
+                namespace: this.config.namespace,
+                requestImportStatement: this.config.requestImportStatement,
+                disableTypeCheck: false,
+                genType: tp.genType,
+                className: tp.className,
+                instanceName: tp.instanceName,
+                list: [item],
+              },
+            );
+            prettierError.push(hasError);
+          });
 
-      // fs
-      // readFile(dirPath);
-      await this.genIndexFile(dirPath, 'apiIndex');
-    });
+        // fs
+        // readFile(dirPath);
+        await this.genIndexFile(dirPath, 'apiIndex');
+      });
 
     if (prettierError.includes(true)) {
       Log(`🚥 格式化失败，请检查 service 文件内可能存在的语法错误`);
