@@ -259,6 +259,7 @@ class ServiceGenerator {
 
   protected config: GenerateServiceProps;
   protected openAPIData: OpenAPIObject;
+  private pathReplaceReg = /\$?{.*}/g
 
   constructor(config: GenerateServiceProps, openAPIData: OpenAPIObject) {
     this.finalPath = '';
@@ -271,6 +272,7 @@ class ServiceGenerator {
     const { info } = openAPIData;
     const basePath = '';
     this.version = info.version;
+    this.config.generateApis = this.config.generateApis.map(i => i.replace(this.pathReplaceReg, '__'))
     Object.keys(openAPIData.paths || {}).forEach((p) => {
       const pathItem: PathItemObject = openAPIData.paths[p];
       ['get', 'put', 'post', 'delete', 'patch'].forEach((method) => {
@@ -322,11 +324,18 @@ class ServiceGenerator {
     });
     // 生成 controller 文件
     const prettierError = [];
+
+
+    const checkPathInApis = (apiPath: string) => {
+      const regPath = apiPath.replace(this.pathReplaceReg, '__')
+      return this.config.generateApis.find((api) => regPath.endsWith(api))
+    }
+
     // 生成 service 统计
     this.getServiceTP()
       .filter((tp) =>
         this.config.generateApis?.length
-          ? tp.list.find((item) => this.config.generateApis.find((api) => item.path.endsWith(api)))
+          ? tp.list.find((item) => checkPathInApis(item.path))
           : tp,
       )
       .forEach(async (tp) => {
@@ -338,7 +347,7 @@ class ServiceGenerator {
           // 如果配置了generateApis list，则只生成配置的列表,否则全部生成
           .filter((item) =>
             this.config.generateApis?.length
-              ? this.config.generateApis.find((api) => item.path.endsWith(api))
+              ? checkPathInApis(item.path)
               : item,
           )
           .forEach((item) => {

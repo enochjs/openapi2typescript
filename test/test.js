@@ -1,7 +1,8 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-
+const axios = require('axios');
+const { match } = require('node-match-path');
 const openAPI = require('../dist/index');
 
 const gen = async () => {
@@ -11,10 +12,10 @@ const gen = async () => {
   // });
 
   await openAPI.generateService({
-    schemaPath: `${__dirname}/example-files/swagger-get-method-params-convert-obj.json`,
+    schemaPath: `${__dirname}/example-files/linkmore.json`,
     serversPath: './servers',
+    generateApis: ['/api/developecenter/research-archive/{id}/research-archive-detail'],
   });
-
   // await openAPI.generateService({
   //   schemaPath: `${__dirname}/example-files/swagger-schema-contain-blank-symbol.json`,
   //   serversPath: './servers/blank-symbol-servers',
@@ -70,7 +71,8 @@ const gen = async () => {
   // assert(fileControllerStr.indexOf('Content-Type') < 0);
   // await openAPI.generateService({
   //   // requestLibPath: "import request  from '@/request';",
-  //   schemaPath: `http://82.157.33.9/swagger/swagger.json`,
+  //   schemaPath: `http://import { match } from 'node-match-path';
+  // 82.157.33.9/swagger/swagger.json`,
   //   serversPath: './servers',
   // });
   // await openAPI.generateService({
@@ -110,3 +112,27 @@ const gen = async () => {
   // });
 };
 gen();
+
+// axios('http://121.43.101.170:30002/swagger/docs/v1/UFX.SCM.Cloud.DevelopeCenter').then((res) => {
+//   // console.log(res.data);
+//   fs.promises.writeFile('./linemore.json', JSON.stringify(res.data, null, 2));
+// });
+// const result = match(
+//   '/api/developecenter/research-archive/${param0}/research-archive-detail',
+//   '/api/developecenter/research-archive/{id}/research-archive-detail',
+// );
+// console.log('===result', result);
+// // const s = `/api/developecenter/research-archive/${param0}/research-archive-detail`;
+// // new RegExp();
+
+// // ('/api/developecenter/research-archive/{id}/research-archive-detail');
+
+// const r = /\$?{.*}/.test('/api/developecenter/research-archive/{id}/research-archive-detail');
+// console.log(
+//   '===re',
+//   '/api/developecenter/research-archive/{id}/research-archive-detail'.replace(/\$?{.*}/g, '____'),
+//   '/api/developecenter/research-archive/${param0}/research-archive-detail'.replace(
+//     /\$?{.*}/g,
+//     '____',
+//   ),
+// );
