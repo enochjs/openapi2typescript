@@ -15,7 +15,7 @@ const gen = async () => {
     namespace: 'DevelopeCenter',
     schemaPath: `${__dirname}/example-files/linkmore.json`,
     serversPath: './servers',
-    // generateApis: ['/api/developecenter/research-archive/{id}/research-archive-detail'],
+    generateApis: ['/api/developecenter/research-archive/turn-to-big-goods'],
   });
   // await openAPI.generateService({
   //   schemaPath: `${__dirname}/example-files/swagger-schema-contain-blank-symbol.json`,

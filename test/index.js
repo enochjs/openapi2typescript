@@ -7,5 +7,5 @@ generateService({
   serversPath: './src/services',
   projectName: 'DevelopeCenter',
   namespace: 'DevelopeCenter',
-  generateApis: ['developecenter/supplier/page-query-supplier'],
+  generateApis: ['/api/developecenter/research-archive/turn-to-big-goods'],
 });

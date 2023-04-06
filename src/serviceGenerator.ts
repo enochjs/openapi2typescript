@@ -49,29 +49,6 @@ export const getPath = () => {
   return existsSync(join(cwd, 'src')) ? join(cwd, 'src') : cwd;
 };
 
-// 类型声明过滤关键字
-// const resolveTypeName = (typeName: string) => {
-//   if (ReservedDict.check(typeName)) {
-//     return `__openAPI__${typeName}`;
-//   }
-//   // const typeLastName = typeName.split('/').pop().split('.').pop();
-//   const typeLastName = typeName.replace(/\[\[/g, '_').split('/').pop().split(',')[0];
-
-//   const name = typeLastName
-//     .replace(/[-_ ](\w)/g, (_all, letter) => letter.toUpperCase())
-//     .replace(/[^\w^\s^\u4e00-\u9fa5]/gi, '');
-
-//   // 当model名称是number开头的时候，ts会报错。这种场景一般发生在后端定义的名称是中文
-//   if (name === '_' || /^\d+$/.test(name)) {
-//     Log('⚠️  models不能以number开头，原因可能是Model定义名称为中文, 建议联系后台修改');
-//     return `Pinyin_${name}`;
-//   }
-//   if (!/[\u3220-\uFA29]/.test(name) && !/^\d$/.test(name)) {
-//     return name;
-//   }
-//   const noBlankName = name.replace(/ +/g, '');
-//   return pinyin.convertToPinyin(noBlankName, '', true);
-// };
 const typeNameMap = {}
 const resultNameMap = {}
 // 类型声明过滤关键字
@@ -94,9 +71,7 @@ const resolveTypeName = (typeName: string, namespace: string) => {
   if (index !== -1 && name.length > 20) {
     resultName = resultName.slice(index + namespace.length)
   }
-  if (!isNaN(+resultName)) {
-    console.log('======resultName', 'namespace=', namespace, resultName, 'index=', index, 'name=',name, '----', name.slice(index + namespace.length), namespace, name.toLowerCase().lastIndexOf(namespace.toLowerCase()))
-  }
+
 
   if (!resultNameMap[resultName]) {
     resultNameMap[resultName] = 1
@@ -1003,11 +978,25 @@ class ServiceGenerator {
         enumStr = `{${enumArray.map((v) => `${v}="${v}"`).join(',')}}`;
         break;
       case 'string-literal':
+        const result = []
+        enumArray.forEach(v => {
+          const item = typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v, this.config.namespace)
+          result.push(item)
+        })
+        enumArray.forEach(v => {
+          const item = typeof v === 'string' ? v : getType(v, this.config.namespace)
+          const key = item.match(/(.*?)\(/)[1]
+          result.push(`"${ key.replace(/"/g, '"')}"`, `"${key.replace(/^\S/, s => s.toLowerCase()).replace(/"/g, '"')}"`)
+          
+        })
+        enumArray.forEach(v => {
+          const item = typeof v === 'string' ? v : getType(v, this.config.namespace)
+          result.push(isNaN(+item.split('=')[1]) ? item.split('=')[1] : +item.split('=')[1])
+        })
+        
         enumStr = Array.from(
           new Set(
-            enumArray.map((v) =>
-              typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v, this.config.namespace),
-            ),
+            result
           ),
         ).join(' | ');
         break;
