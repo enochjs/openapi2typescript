@@ -50,38 +50,76 @@ export const getPath = () => {
 };
 
 // 类型声明过滤关键字
-const resolveTypeName = (typeName: string) => {
+// const resolveTypeName = (typeName: string) => {
+//   if (ReservedDict.check(typeName)) {
+//     return `__openAPI__${typeName}`;
+//   }
+//   // const typeLastName = typeName.split('/').pop().split('.').pop();
+//   const typeLastName = typeName.replace(/\[\[/g, '_').split('/').pop().split(',')[0];
+
+//   const name = typeLastName
+//     .replace(/[-_ ](\w)/g, (_all, letter) => letter.toUpperCase())
+//     .replace(/[^\w^\s^\u4e00-\u9fa5]/gi, '');
+
+//   // 当model名称是number开头的时候，ts会报错。这种场景一般发生在后端定义的名称是中文
+//   if (name === '_' || /^\d+$/.test(name)) {
+//     Log('⚠️  models不能以number开头，原因可能是Model定义名称为中文, 建议联系后台修改');
+//     return `Pinyin_${name}`;
+//   }
+//   if (!/[\u3220-\uFA29]/.test(name) && !/^\d$/.test(name)) {
+//     return name;
+//   }
+//   const noBlankName = name.replace(/ +/g, '');
+//   return pinyin.convertToPinyin(noBlankName, '', true);
+// };
+const typeNameMap = {}
+const resultNameMap = {}
+// 类型声明过滤关键字
+const resolveTypeName = (typeName: string, namespace: string) => {
   if (ReservedDict.check(typeName)) {
     return `__openAPI__${typeName}`;
   }
-  // const typeLastName = typeName.split('/').pop().split('.').pop();
   const typeLastName = typeName.replace(/\[\[/g, '_').split('/').pop().split(',')[0];
 
   const name = typeLastName
     .replace(/[-_ ](\w)/g, (_all, letter) => letter.toUpperCase())
-    .replace(/[^\w^\s^\u4e00-\u9fa5]/gi, '');
+    .replace(/[^\w^\s^\u4e00-\u9fa5]/gi, '')
+    .replace(/ +/g, '');
+  
+  if (typeNameMap[name]) {
+    return typeNameMap[name]
+  }
+  const index = name.toLowerCase().lastIndexOf(namespace.toLowerCase());
+  let resultName = name
+  if (index !== -1 && name.length > 20) {
+    resultName = resultName.slice(index + namespace.length)
+  }
+  if (!isNaN(+resultName)) {
+    console.log('======resultName', 'namespace=', namespace, resultName, 'index=', index, 'name=',name, '----', name.slice(index + namespace.length), namespace, name.toLowerCase().lastIndexOf(namespace.toLowerCase()))
+  }
 
-  // 当model名称是number开头的时候，ts会报错。这种场景一般发生在后端定义的名称是中文
-  if (name === '_' || /^\d+$/.test(name)) {
-    Log('⚠️  models不能以number开头，原因可能是Model定义名称为中文, 建议联系后台修改');
-    return `Pinyin_${name}`;
+  if (!resultNameMap[resultName]) {
+    resultNameMap[resultName] = 1
+    typeNameMap[name] = resultName
+    return resultName
   }
-  if (!/[\u3220-\uFA29]/.test(name) && !/^\d$/.test(name)) {
-    return name;
-  }
-  const noBlankName = name.replace(/ +/g, '');
-  return pinyin.convertToPinyin(noBlankName, '', true);
+  const currentIndex = resultNameMap[resultName]
+  const newName = `${resultName}${currentIndex}`
+  typeNameMap[name] = newName
+  resultNameMap[resultName] = currentIndex + 1
+  return newName
+
 };
 
-function getRefName(refObject: any): string {
+function getRefName(refObject: any, namespace: string): string {
   if (typeof refObject !== 'object' || !refObject.$ref) {
     return refObject;
   }
   const refPaths = refObject.$ref.split('/');
-  return resolveTypeName(refPaths[refPaths.length - 1]) as string;
+  return resolveTypeName(refPaths[refPaths.length - 1], namespace) as string;
 }
 
-const getType = (schemaObject: SchemaObject | undefined, namespace: string = ''): string => {
+const getType = (schemaObject: SchemaObject | undefined, namespace: string): string => {
   if (schemaObject === undefined || schemaObject === null) {
     return 'any';
   }
@@ -89,7 +127,7 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
     return schemaObject;
   }
   if (schemaObject.$ref) {
-    return [namespace, getRefName(schemaObject)].filter((s) => s).join('.');
+    return [namespace, getRefName(schemaObject, namespace)].filter((s) => s).join('.');
   }
 
   let { type } = schemaObject as any;
@@ -157,7 +195,7 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
       ? Array.from(
           new Set(
             schemaObject.enum.map((v) =>
-              typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v),
+              typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v, namespace),
             ),
           ),
         ).join(' | ')
@@ -272,7 +310,7 @@ class ServiceGenerator {
     const { info } = openAPIData;
     const basePath = '';
     this.version = info.version;
-    this.config.generateApis = this.config.generateApis.map(i => i.replace(this.pathReplaceReg, '__'))
+    this.config.generateApis = this.config.generateApis?.map(i => i.replace(this.pathReplaceReg, '__')) || []
     Object.keys(openAPIData.paths || {}).forEach((p) => {
       const pathItem: PathItemObject = openAPIData.paths[p];
       ['get', 'put', 'post', 'delete', 'patch'].forEach((method) => {
@@ -294,7 +332,7 @@ class ServiceGenerator {
             ];
 
         tags.forEach((tagString) => {
-          const tag = resolveTypeName(tagString);
+          const tag = resolveTypeName(tagString, this.config.namespace);
 
           if (!this.apiData[tag]) {
             this.apiData[tag] = [];
@@ -413,18 +451,24 @@ class ServiceGenerator {
   public getFuncationName(data: APIDataType) {
     // 获取路径相同部分
     const pathBasePrefix = this.getBasePrefix(Object.keys(this.openAPIData.paths));
-    return this.config.hook && this.config.hook.customFunctionName
+    const functionName = this.config.hook && this.config.hook.customFunctionName
       ? this.config.hook.customFunctionName(data)
       : data.operationId
       ? this.resolveFunctionName(stripDot(data.operationId), data.method)
       : data.method + this.genDefaultFunctionName(data.path, pathBasePrefix);
+      const index = functionName.toLowerCase().lastIndexOf(this.config.namespace.toLowerCase());
+      let resultFunctionName = functionName
+      if (index !== -1 && functionName.length > 20) {
+        resultFunctionName = functionName.slice(index + this.config.namespace.length)
+      }
+      return resultFunctionName.replace(/^\S/, s => s.toLowerCase())
   }
 
   public getTypeName(data: APIDataType) {
     const namespace = this.config.namespace ? `${this.config.namespace}.` : '';
     const typeName = this.config?.hook?.customTypeName?.(data) || this.getFuncationName(data);
 
-    return resolveTypeName(`${namespace}${typeName ?? data.operationId}Params`);
+    return resolveTypeName(`${namespace}${typeName ?? data.operationId}Params`, this.config.namespace);
   }
 
   public getServiceTP() {
@@ -801,7 +845,7 @@ class ServiceGenerator {
             return 'Record<string, any>';
           };
           return {
-            typeName: resolveTypeName(typeName),
+            typeName: resolveTypeName(typeName, this.config.namespace),
             type: getDefinesType(),
             parent: result.parent,
             props: result.props || [],
@@ -826,7 +870,7 @@ class ServiceGenerator {
               desc: parameter.description ?? '',
               name: parameter.name,
               required: parameter.required,
-              type: getType(parameter.schema),
+              type: getType(parameter.schema, this.config.namespace),
             });
           });
         }
@@ -837,7 +881,7 @@ class ServiceGenerator {
               desc: parameter.description ?? '',
               name: parameter.name,
               required: parameter.required,
-              type: getType(parameter.schema),
+              type: getType(parameter.schema, this.config.namespace),
             });
           });
         }
@@ -900,7 +944,7 @@ class ServiceGenerator {
           return {
             ...schema,
             name: propName,
-            type: getType(schema),
+            type: getType(schema, this.config.namespace),
             desc: [schema.title, schema.description].filter((s) => s).join(' '),
             // 如果没有 required 信息，默认全部是非必填
             required: requiredPropKeys ? requiredPropKeys.some((key) => key === propName) : false,
@@ -962,7 +1006,7 @@ class ServiceGenerator {
         enumStr = Array.from(
           new Set(
             enumArray.map((v) =>
-              typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v),
+              typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v, this.config.namespace),
             ),
           ),
         ).join(' | ');
@@ -979,7 +1023,7 @@ class ServiceGenerator {
 
   resolveAllOfObject(schemaObject: SchemaObject) {
     const props = (schemaObject.allOf || []).map((item) =>
-      item.$ref ? [{ ...item, type: getType(item).split('/').pop() }] : this.getProps(item),
+      item.$ref ? [{ ...item, type: getType(item, this.config.namespace).split('/').pop() }] : this.getProps(item),
     );
     return { props };
   }
@@ -999,7 +1043,7 @@ class ServiceGenerator {
          * 兼容错误命名如 /user/:id/:name
          * 因为是typeName，所以直接进行转换
          * */
-        let s = resolveTypeName(str);
+        let s = resolveTypeName(str, this.config.namespace);
         if (s.includes('-')) {
           s = s.replace(/(-\w)+/g, (_match: string, p1) => p1?.slice(1).toUpperCase());
         }
