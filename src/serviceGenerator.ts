@@ -49,8 +49,6 @@ export const getPath = () => {
   return existsSync(join(cwd, 'src')) ? join(cwd, 'src') : cwd;
 };
 
-const typeNameMap = {}
-const resultNameMap = {}
 // 类型声明过滤关键字
 const resolveTypeName = (typeName: string, namespace: string) => {
   if (ReservedDict.check(typeName)) {
@@ -61,29 +59,19 @@ const resolveTypeName = (typeName: string, namespace: string) => {
   const name = typeLastName
     .replace(/[-_ ](\w)/g, (_all, letter) => letter.toUpperCase())
     .replace(/[^\w^\s^\u4e00-\u9fa5]/gi, '')
-    .replace(/ +/g, '');
+    .replace(new RegExp(namespace, 'g'), '');
   
-  if (typeNameMap[name]) {
-    return typeNameMap[name]
-  }
-  const index = name.toLowerCase().lastIndexOf(namespace.toLowerCase());
-  let resultName = name
-  if (index !== -1 && name.length > 20) {
-    resultName = resultName.slice(index + namespace.length)
-  }
 
-
-  if (!resultNameMap[resultName]) {
-    resultNameMap[resultName] = 1
-    typeNameMap[name] = resultName
-    return resultName
+  // 当model名称是number开头的时候，ts会报错。这种场景一般发生在后端定义的名称是中文
+  if (name === '_' || /^\d+$/.test(name)) {
+    Log('⚠️  models不能以number开头，原因可能是Model定义名称为中文, 建议联系后台修改');
+    return `Pinyin_${name}`;
   }
-  const currentIndex = resultNameMap[resultName]
-  const newName = `${resultName}${currentIndex}`
-  typeNameMap[name] = newName
-  resultNameMap[resultName] = currentIndex + 1
-  return newName
-
+  if (!/[\u3220-\uFA29]/.test(name) && !/^\d$/.test(name)) {
+    return name;
+  }
+  const noBlankName = name.replace(/ +/g, '');
+  return pinyin.convertToPinyin(noBlankName, '', true);
 };
 
 function getRefName(refObject: any, namespace: string): string {
