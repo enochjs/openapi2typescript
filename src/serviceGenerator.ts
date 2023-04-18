@@ -411,7 +411,7 @@ class ServiceGenerator {
     return c.length > 0 ? c : null;
   };
 
-  public getFuncationName(data: APIDataType) {
+  public getFunctionName(data: APIDataType) {
     // 获取路径相同部分
     const pathBasePrefix = this.getBasePrefix(Object.keys(this.openAPIData.paths));
     const functionName = this.config.hook && this.config.hook.customFunctionName
@@ -420,16 +420,17 @@ class ServiceGenerator {
       ? this.resolveFunctionName(stripDot(data.operationId), data.method)
       : data.method + this.genDefaultFunctionName(data.path, pathBasePrefix);
       const index = functionName.toLowerCase().lastIndexOf(this.config.namespace.toLowerCase());
+      
       let resultFunctionName = functionName
       if (index !== -1 && functionName.length > 20) {
-        resultFunctionName = functionName.slice(index + this.config.namespace.length)
+        resultFunctionName = data.method + functionName.slice(index + this.config.namespace.length)
       }
       return resultFunctionName.replace(/^\S/, s => s.toLowerCase())
   }
 
   public getTypeName(data: APIDataType) {
     const namespace = this.config.namespace ? `${this.config.namespace}.` : '';
-    const typeName = this.config?.hook?.customTypeName?.(data) || this.getFuncationName(data);
+    const typeName = this.config?.hook?.customTypeName?.(data) || this.getFunctionName(data);
 
     return resolveTypeName(`${namespace}${typeName ?? data.operationId}Params`, this.config.namespace);
   }
@@ -463,7 +464,7 @@ class ServiceGenerator {
                 formData = true;
               }
 
-              let functionName = this.getFinalFileName(this.getFuncationName(newApi));
+              let functionName = this.getFinalFileName(this.getFunctionName(newApi));
 
               if (functionName && tmpFunctionRD[functionName]) {
                 functionName = `${functionName}_${(tmpFunctionRD[functionName] += 1)}`;

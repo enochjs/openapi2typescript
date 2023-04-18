@@ -12,10 +12,10 @@ const gen = async () => {
   // });
 
   await openAPI.generateService({
-    namespace: 'DevelopeCenter',
+    namespace: 'Infrastructurecenter',
     schemaPath: `${__dirname}/example-files/linkmore.json`,
     serversPath: './servers',
-    // generateApis: ['/api/developecenter/research-archive/turn-to-big-goods'],
+    generateApis: ['/api/infrastructurecenter/dynamic-query-config'],
   });
   // await openAPI.generateService({
   //   schemaPath: `${__dirname}/example-files/swagger-schema-contain-blank-symbol.json`,
