@@ -960,7 +960,6 @@ class ServiceGenerator {
 
   resolveEnumObject(schemaObject: SchemaObject) {
     const enumArray = schemaObject.enum;
-
     let enumStr;
     switch (this.config.enumStyle) {
       case 'enum':
@@ -973,12 +972,18 @@ class ServiceGenerator {
           result.push(item)
         })
         enumArray.forEach(v => {
+          if (typeof v === 'number') {
+            return
+          }
           const item = typeof v === 'string' ? v : getType(v, this.config.namespace)
           const key = item.match(/(.*?)\(/)[1]
           result.push(`"${ key.replace(/"/g, '"')}"`, `"${key.replace(/^\S/, s => s.toLowerCase()).replace(/"/g, '"')}"`)
           
         })
         enumArray.forEach(v => {
+          if (typeof v === 'number') {
+            return
+          }
           const item = typeof v === 'string' ? v : getType(v, this.config.namespace)
           result.push(isNaN(+item.split('=')[1]) ? item.split('=')[1] : +item.split('=')[1])
         })
