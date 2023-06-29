@@ -83,6 +83,10 @@ export type GenerateServiceProps = {
    * 需要更新的api列表,如果指定了api list，则只更新api list
    */
   generateApis?: string[];
+  /**
+   * 是否生成traceId, 默认为false, 开启则 在request header中添加 feTraceId， 且增加functionName.feTraceId = feTraceId，
+   */
+  generateTraceId?: boolean;
 };
 
 const converterSwaggerToOpenApi = (swagger: any) => {

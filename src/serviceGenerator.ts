@@ -17,6 +17,7 @@ import path, { join } from 'path';
 import ReservedDict from 'reserved-words';
 import rimraf from 'rimraf';
 import pinyin from 'tiny-pinyin';
+import { createHash } from 'crypto'
 import type { GenerateServiceProps } from './index';
 import Log from './log';
 import { stripDot, writeFile } from './util';
@@ -882,6 +883,11 @@ class ServiceGenerator {
   ): boolean {
     try {
       const template = this.getTemplate(type);
+      if (this.config.generateTraceId) {
+        params.list.forEach(item => {
+          item.feTraceId = createHash('sha256').update(JSON.stringify(item)).digest('hex').slice(0, 32);
+        })
+      }
       // 设置输出不转义
       nunjucks.configure({
         autoescape: false,

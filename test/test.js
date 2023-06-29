@@ -15,7 +15,8 @@ const gen = async () => {
     namespace: 'Infrastructurecenter',
     schemaPath: `${__dirname}/example-files/linkmore.json`,
     serversPath: './servers',
-    generateApis: ['/api/infrastructurecenter/dynamic-query-config'],
+    generateApis: ['/api/financecenter/payable/modify-manual-payable'],
+    generateTraceId: true,
   });
   // await openAPI.generateService({
   //   schemaPath: `${__dirname}/example-files/swagger-schema-contain-blank-symbol.json`,
