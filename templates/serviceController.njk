@@ -108,7 +108,10 @@ export async function {{ api.functionName }}(
       {%- endif %}
     {%- endif %}
       {%- if api.feTraceId %}
-      'feTraceId':  {{ api.functionName }}.feTraceId,
+        'feTraceId':  {{ api.functionName }}.feTraceId,
+      {%- endif %}
+      {%- if api.__system__ %}
+        '__system__':  '{{ api.__system__ }}',
       {%- endif %}
     },
     {%- if api.params and api.hasParams %}

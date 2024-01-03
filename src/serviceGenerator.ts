@@ -883,9 +883,14 @@ class ServiceGenerator {
   ): boolean {
     try {
       const template = this.getTemplate(type);
-      if (this.config.generateTraceId) {
+      if (this.config.generateTraceId || this.config.__system__) {
         params.list.forEach(item => {
-          item.feTraceId = createHash('sha256').update(JSON.stringify(item)).digest('hex').slice(0, 32);
+          if (this.config.generateTraceId) {
+            item.feTraceId = createHash('sha256').update(JSON.stringify(item)).digest('hex').slice(0, 32);
+          }
+          if (this.config.__system__) {
+            item.__system__ = 'OMS'  
+          }
         })
       }
       // 设置输出不转义

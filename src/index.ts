@@ -87,6 +87,7 @@ export type GenerateServiceProps = {
    * 是否生成traceId, 默认为false, 开启则 在request header中添加 feTraceId， 且增加functionName.feTraceId = feTraceId，
    */
   generateTraceId?: boolean;
+  __system__?: string;
 };
 
 const converterSwaggerToOpenApi = (swagger: any) => {
